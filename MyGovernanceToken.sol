@@ -6,7 +6,7 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.5.0/contr
 
 contract MyGovernanceToken is ERC20, Ownable {
     uint256 public constant VOTING_DURATION = 7 days; 
-    
+    uint256 public proposalCount;
 
     struct Proposal {
         address proposer;
@@ -49,10 +49,10 @@ contract MyGovernanceToken is ERC20, Ownable {
         
 
     function vote(address _id, bool _support) external {
-        require(!hasVoted[_id], "Address has already voted");
+      
 
         Proposal storage proposal = proposals[_id];
-
+        require(msg.sender != proposal.proposer, "Owner cannot vote on their own proposal");
         require(!proposal.cancelled, "Proposal has been cancelled");
         require(block.timestamp < proposal.startTime + VOTING_DURATION, "Voting has ended");
 
@@ -66,9 +66,20 @@ contract MyGovernanceToken is ERC20, Ownable {
 
         emit Voted(_id, _id, _support);
     }
+    
+    function getForvote() public view returns (uint256){
+        Proposal storage proposal = proposals[msg.sender];
 
-    function cancelProposal(address _id) external onlyOwner {
-        Proposal storage proposal = proposals[_id];
+        return proposal.forVotes;
+    }
+
+    function getAgainstvote() public view returns (uint256){
+        Proposal storage proposal = proposals[msg.sender];
+
+        return proposal.againstVotes;
+    }
+    function cancelProposal() external onlyOwner {
+        Proposal storage proposal = proposals[msg.sender];
 
         require(msg.sender == proposal.proposer, "You are not the proposer");
         require(!proposal.cancelled, "Proposal has already been cancelled");
@@ -77,11 +88,11 @@ contract MyGovernanceToken is ERC20, Ownable {
 
         proposal.cancelled = true;
 
-        emit ProposalCancelled(_id);
+        emit ProposalCancelled(msg.sender);
     }
 
-    function executeProposal(address _id) external onlyOwner {
-        Proposal storage proposal = proposals[_id];
+    function executeProposal() external onlyOwner {
+        Proposal storage proposal = proposals[msg.sender];
 
         require(!proposal.cancelled, "Proposal has been cancelled");
         require(!proposal.executed, "Proposal already executed");
@@ -90,7 +101,7 @@ contract MyGovernanceToken is ERC20, Ownable {
         if (proposal.forVotes > proposal.againstVotes) {
             proposal.executed = true;
 
-            emit ProposalExecuted(_id);
+            emit ProposalExecuted(msg.sender);
         }
     }
 }
